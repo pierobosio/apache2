@@ -1,0 +1,92 @@
+
+# Apache2 module to activate
+#    headers
+#    http2
+#    proxy
+#    proxy_http
+#    proxy_http2
+#    proxy_wstunnel
+#    socache_shmcb
+#    ssl
+
+
+<VirtualHost xxx.xxx.xxx:80>
+    SuexecUserGroup "#xxxx" "#yyyy" # UserID e GroupID dell'utente mastodon.
+    ServerName host.miodominio.tld
+    DocumentRoot  # la cartella public di Mastodon, esempio: /home/mastodon/live/public
+ 
+    <Directory /home/mastodon/live/public>
+        # eventuali direttive Apache2 opzionali per la cartella
+       ....
+    </Directory>
+    RedirectMatch ^/(?!.well-known)(.*)$ https://host.miodominio.tld/$1
+</VirtualHost>
+
+<VirtualHost xxx.xxx.xxx:443>
+    SuexecUserGroup "#xxxx" "#yyyy" # UserID e GroupID dell'utente mastodon.
+    ServerName host.miodominio.tld
+    DocumentRoot  # la cartella public di Mastodon esempio: /home/mastodon/live/public
+    <Directory /home/mastodon/live/public>
+     # eventuali direttive Apache2 opzionali per la cartella
+    ...
+    </Directory>
+
+    RewriteEngine on
+    SSLEngine on
+    SSLCertificateFile # percorso cartella con il file del certificato SSL con chiave pubblica
+    SSLCertificateKeyFile # cartella cartella con il file del certificato SSL con chiave privata
+    SSLProtocol all -SSLv2 -SSLv3 -TLSv1 -TLSv1.1
+    SSLCACertificateFile # percorso cartella con il file del certificato SSL delle autorità di certificazione
+  
+    # Sezione Mastodon
+    SSLProxyEngine On
+    RequestHeader set Front-End-Https "On"
+   
+    SSLHonorCipherOrder on
+    SSLCipherSuite ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:EECDH+AESGCM:AES256+EECDH:AES128+EECDH
+    SSLCompression off
+    SSLSessionTickets off
+
+    Protocols h2 http/1.1 h2c
+    Header always set Strict-Transport-Security "max-age=31536000"
+    <LocationMatch "^/(assets|avatars|emoji|headers|packs|sounds|system)">
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+        Require all granted
+    </LocationMatch>
+    <Location "/">
+        Require all granted
+    </Location>
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+    ProxyAddHeaders On
+   #
+    ProxyPass /500.html !
+    ProxyPass /sw.js !
+    ProxyPass /robots.txt !
+    ProxyPass /manifest.json !
+    ProxyPass /browserconfig.xml !
+    ProxyPass /mask-icon.svg !
+    ProxyPassMatch ^(/.*\.(png|ico)$) !
+    ProxyPassMatch ^/(assets|avatars|emoji|headers|packs|sounds|system) !
+    #
+    ProxyPass /avatars/original/missing.png !
+    ProxyPass /headers/original/missing.png !
+    ProxyPass /inert.css !
+    ProxyPass /oops.png !
+    ProxyPass /packs !
+    ProxyPass /assets !
+    ProxyPass /system !
+    ProxyPass /emoji !
+    ProxyPass /sounds !
+    #
+    ProxyPass /api/v1/streaming ws://localhost:4000
+    ProxyPassReverse /api/v1/streaming ws://localhost:4000
+    ProxyPass / http://localhost:3000/
+    ProxyPassReverse / http://localhost:3000/
+   #
+    ErrorDocument 500 /500.html
+    ErrorDocument 501 /500.html
+    ErrorDocument 502 /500.html
+    ErrorDocument 503 /500.html
+    ErrorDocument 504 /500.html
+</VirtualHost>
